@@ -1,9 +1,18 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, File, UploadFile
+from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse
+
+import cv2
+app = FastAPI()
+
 from tqdm.notebook import trange
 from IPython.display import Image, display
 import os
 from big_sleep import Imagine
 from random import randint
-
+import torch
 
 from googletrans import Translator
 
@@ -20,8 +29,7 @@ images=[]
 #TEXT=trans(translator,data[i])
 
 from big_sleep import Imagine
-
-def gen(TEXT):
+def gen(TEXT,ite):
   """
   Text входная строка по английски
   return
@@ -39,22 +47,20 @@ def gen(TEXT):
   
   
   images=[]
-  model = Imagine(
+  (model) = Imagine(
     text = TEXT,
     save_every = SAVE_EVERY,
     lr = LEARNING_RATE,
     iterations = 2,
     save_progress = SAVE_PROGRESS,
-    seed = randint(0,1000)
+    seed = 0
   )
-  for epoch in trange(2, desc = 'epochs'):#20
+  for epoch in range(1):#20
 
-      for i in trange(20, desc = 'iteration'):#1000
-        model.train_step(epoch, i)
+      for i in range(ite):#1000
+        (model.train_step(epoch, i))#
         images+=[ Image(f'{[i]}.png')]
-  
-       
-    
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, File, UploadFile
@@ -68,16 +74,19 @@ app = FastAPI()
 
 @app.get("/")
 async def main():
-    return "api"
+    return "go to /text2image/?it=10?message=какая то русская строка"
 
 
 
-@app.get('/text2image/')
-async def detect_spam_query(message: str):
+@app.get('/text2image/{it}')
+async def detect_spam_query(it: int,message: str):
   text = trans(translator,message)
-  gen(text)
-  
-  return FileResponse(text+'.png')
+  gen(text,it)
+  print('sending')
+  return FileResponse(text.replace(' ','_')+'.png')
+
+
+
 
 
 
@@ -86,5 +95,7 @@ import nest_asyncio
 from pyngrok import ngrok
 import uvicorn
 
-
-uvicorn.run(app,timeout_keep_alive=100)
+ngrok_tunnel = ngrok.connect(8000)
+print('Public URL:', ngrok_tunnel.public_url)
+nest_asyncio.apply()
+uvicorn.run(app, port=8000,timeout_keep_alive=100)
