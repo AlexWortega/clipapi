@@ -97,4 +97,4 @@ import uvicorn
 
 
 nest_asyncio.apply()
-uvicorn.run(app, port=8000,timeout_keep_alive=100)
+uvicorn.run(app, port=80,timeout_keep_alive=100)
