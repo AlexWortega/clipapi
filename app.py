@@ -16,58 +16,83 @@ import torch
 
 from googletrans import Translator
 
-def trans(translator,text):
-  trans = translator.translate(str(text),dest='en')
-  return trans.text
+import numpy as np
+from random import randint
+import os
+import base64
 
-translator = Translator()
-
-images=[]
-
-
-
-#TEXT=trans(translator,data[i])
-
-from big_sleep import Imagine
-def gen(TEXT,ite):
-  """
-  Text входная строка по английски
-  return
-
-  """
-  SAVE_EVERY =  1
-  SAVE_PROGRESS = False 
-  LEARNING_RATE = 5e-2 
-
-  
-
-    
-  
-
-  
-  
-  images=[]
-  (model) = Imagine(
-    text = TEXT,
-    save_every = SAVE_EVERY,
-    lr = LEARNING_RATE,
-    iterations = 2,
-    save_progress = SAVE_PROGRESS,
-    seed = 0
-  )
-  for epoch in range(1):#20
-
-      for i in range(ite):#1000
-        (model.train_step(epoch, i))#
-        images+=[ Image(f'{[i]}.png')]
-
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, File, UploadFile
-from fastapi.responses import FileResponse
-from fastapi.responses import FileResponse
 
 import cv2
+from PIL import Image
+
+from big_sleep import Imagine
+from models import SRPredictor
+
+
+
+
+
+
+"""
+-------------------------MODEL--------------------
+"""
+
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+def translate_rus2eng(text):
+    translator = Translator()
+    trans = translator.translate(str(text), dest='en')
+    return trans.text
+
+def encode_img(img):
+    jpg_img = cv2.imencode('.jpg', img)
+    img_b64 = base64.b64encode(jpg_img[1]).decode('utf-8')
+    return img_b64
+
+def generate(text, iters):
+    TEXT = text
+    SAVE_EVERY = 100
+    SAVE_PROGRESS = False 
+    LEARNING_RATE = 5e-2
+    ITERATIONS = 100
+    SEED = randint(0,100)
+
+    images=[]
+    model = Imagine(
+        text = TEXT,
+        save_every = SAVE_EVERY,
+        lr = LEARNING_RATE,
+        iterations = ITERATIONS,
+        save_progress = SAVE_PROGRESS,
+        seed = SEED
+      )
+    
+    epoch = 0
+    for i in range(iters):
+        model.train_step(epoch, i)
+        
+def text2image(text, iters):
+    text = translate_rus2eng(text=text)
+    generate(text=text, iters=iters)
+    image = Image.open(text.replace(' ', '_')+'.png').convert('RGB')
+    return image
+
+def predict(request):
+    text = str(request['text'])   
+    iters = int(request['iters'])
+    scale = int(request['scale'])
+    
+    sr = SRPredictor(device)
+    sr.load_weights()
+    image = text2image(text=text, iters=iters)
+    result = sr.predict(image, scale=scale, decompress=False)
+    return {"result": encode_img(np.array(result))}
+  
+  
+"""
+-------------------------API--------------------
+"""  
+
 app = FastAPI()
 
 
@@ -79,12 +104,13 @@ async def main():
 
 
 @app.get('/text2image/{it}')
-async def detect_spam_query(it: int,message: str):
-  text = trans(translator,message)
-  gen(text,it)
-  print('sending')
-  return FileResponse(text.replace(' ','_')+'.png')
+async def detect_spam_query(message: str,it: int,scale: int):
+  
+  req = {"text":message,"iters":it,"scale":scale}
+  
+  
 
+  return predict(req)
 
 
 
