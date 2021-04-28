@@ -5,7 +5,6 @@ from fastapi.responses import FileResponse
 from fastapi.responses import FileResponse
 
 import cv2
-app = FastAPI()
 
 from tqdm.notebook import trange
 from IPython.display import Image, display
@@ -94,6 +93,22 @@ def predict(request):
 """  
 
 app = FastAPI()
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware import Middleware
+from starlette.middleware.cors import CORSMiddleware
+
+
+
+origins = ["*"]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 
 
@@ -122,5 +137,13 @@ from pyngrok import ngrok
 import uvicorn
 
 
+import nest_asyncio
+from pyngrok import ngrok
+import uvicorn
+
+
 nest_asyncio.apply()
-uvicorn.run(app, port=80,timeout_keep_alive=100)
+uvicorn.run(app, host="0.0.0.0", port=5000,timeout_keep_alive=100)
+
+
+
