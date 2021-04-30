@@ -1,9 +1,13 @@
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.responses import FileResponse
-
+import uvicorn
+import nest_asyncio
+import os  
+import uvicorn
 import cv2
 
 from tqdm.notebook import trange
@@ -50,7 +54,9 @@ def encode_img(img):
 
 def generate(text, iters):
     TEXT = text
-    SAVE_EVERY = 100
+    if iters<1:
+      iters=1
+    SAVE_EVERY = 1
     SAVE_PROGRESS = False 
     LEARNING_RATE = 5e-2
     ITERATIONS = 100
@@ -69,13 +75,18 @@ def generate(text, iters):
     epoch = 0
     for i in range(iters):
         model.train_step(epoch, i)
-        
+      
 def text2image(text, iters):
-    text = translate_rus2eng(text=text)
+    text = translate_rus2eng(text=text[:100])
+    text = text.replace('/n', '')
+    text = text.replace('.', '')
+    text = text.replace(',','')
+    text = text.replace('/','')
+    text = text.replace('-', '')
+ #   text = text.replace("\", '')
     generate(text=text, iters=iters)
     image = Image.open(text.replace(' ', '_')+'.png').convert('RGB')
     return image
-
 def predict(request):
     text = str(request['text'])   
     iters = int(request['iters'])
@@ -85,13 +96,15 @@ def predict(request):
     sr.load_weights()
     image = text2image(text=text, iters=iters)
     result = sr.predict(image, scale=scale, decompress=False)
+    myfile = text+'.png'
+    if os.path.isfile(myfile):
+        os.remove(myfile)
     return {"result": encode_img(np.array(result))}
   
   
 """
 -------------------------API--------------------
 """  
-
 app = FastAPI()
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware import Middleware
@@ -118,32 +131,16 @@ async def main():
 
 
 
-@app.get('/text2image/{it}')
+@app.get('/text2image/')
 async def detect_spam_query(message: str,it: int,scale: int):
   
   req = {"text":message,"iters":it,"scale":scale}
   
   
-
   return predict(req)
 
-
-
-
-
-
 import nest_asyncio
-from pyngrok import ngrok
-import uvicorn
-
-
-import nest_asyncio
-from pyngrok import ngrok
-import uvicorn
-
+#from pyngrok import ngrok
 
 nest_asyncio.apply()
-uvicorn.run(app, host="0.0.0.0", port=5000,timeout_keep_alive=100)
-
-
-
+uvicorn.run(app, host="0.0.0.0", port=5000,timeout_keep_alive=10000)
